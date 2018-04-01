@@ -2,39 +2,22 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeOperators   #-}
 module Submit.Server
-    ( startApp
-    , app
+    ( app
     ) where
 
-import Data.Aeson
-import Data.Aeson.TH
-import Network.Wai
-import Network.Wai.Handler.Warp
-import Servant
+import           Data.Aeson
+import           Data.Aeson.TH
+import           Network.Wai
+import           Network.Wai.Handler.Warp
+import           Control.Monad.Except
+import           Control.Monad.Reader
+import           Servant             
+import           Servant.Server
+import           Database.Persist.Postgresql (Entity, runSqlPool, selectList)
 
-data User = User
-  { userId        :: Int
-  , userFirstName :: String
-  , userLastName  :: String
-  } deriving (Eq, Show)
+import           Submit.Models
+import           Submit.Config
+import           Submit.API.Teachers
 
-$(deriveJSON defaultOptions ''User)
-
-type API = "users" :> Get '[JSON] [User]
-
-startApp :: IO ()
-startApp = run 8080 app
-
-app :: Application
-app = serve api server
-
-api :: Proxy API
-api = Proxy
-
-server :: Server API
-server = return users
-
-users :: [User]
-users = [ User 1 "Isaac" "Newton"
-        , User 2 "Albert" "Einstein"
-        ]
+app :: Config -> Application
+app = teachersApplication

@@ -37,6 +37,10 @@ resolver: lts-11.2
 # will not be run. This is useful for tweaking upstream packages.
 packages:
 - .
+- location: esqueleto
+  extra-dep: true
+
+extra-deps: [katip-0.5.4.0]
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 # extra-deps: []
