@@ -32,7 +32,14 @@ User json
     username Text
     UniqueUsername username
     name Text
+    deriving Show Eq
+-- Passwords are in a different table because persistent and esqueleto return
+-- all columns when selecting. This means passwords would be sent to the clients
+-- when viewing information about a user.
+UserPassword json
+    userid UserId
     password Text
+    UniqueUser userid
     deriving Show Eq
 Student json
     userid UserId
@@ -45,7 +52,7 @@ Teacher json
     office Text
     deriving Show Eq
 Course json
-    coursecode CourseId
+    coursecode Text
     description Text
     coursename Text
     UniqueCourseCode coursecode
