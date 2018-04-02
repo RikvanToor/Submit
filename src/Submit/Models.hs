@@ -31,16 +31,9 @@ share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 User json
     username Text
     UniqueUsername username
-    name Text
-    deriving Show Eq
--- Passwords are in a different table because persistent and esqueleto return
--- all columns when selecting. This means passwords would be sent to the clients
--- when viewing information about a user.
-UserPassword json
-    userid UserId
     password Text
-    UniqueUser userid
-    deriving Show Eq
+    name Text
+    deriving Show Eq 
 Student json
     userid UserId
     UniqueStudentid userid
@@ -97,8 +90,6 @@ Submits json
     UniqueSubmits studentid submissionid
     deriving Show Eq
 |]
-
-connStr2 = "host=localhost dbname=submit user=submit password=test port=5432"
 
 buildDb :: SqlPersistT IO ()
 buildDb = runMigration migrateAll 

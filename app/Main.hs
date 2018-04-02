@@ -33,6 +33,7 @@ main = do
         logger = setLogger env
     runSqlPool buildDb pool
     -- generateJavaScript
+    putStrLn $ "Starting server on port " ++ (show port)
     run port (app cfg)
 
 -- | Looks up a setting in the environment, with a provided default, and

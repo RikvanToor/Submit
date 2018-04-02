@@ -4,9 +4,9 @@
 
 module Submit.API.Teachers
     ( TeachersAPI
-    , teachersApplication
     , TeacherInfo
     , toTeacherInfo
+    , teachersServer
     ) where
 
 import           Data.Aeson
@@ -55,6 +55,3 @@ proxyt = Proxy
 
 teachersServer :: Config -> Server TeachersAPI
 teachersServer cfg = Handler $ runReaderT (hoistServer proxyt runApp teacherServerT) cfg
-
-teachersApplication :: Config -> Application
-teachersApplication cfg = serve proxyt (teachersServer cfg)

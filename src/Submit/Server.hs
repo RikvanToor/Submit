@@ -18,6 +18,12 @@ import           Database.Persist.Postgresql (Entity, runSqlPool, selectList)
 import           Submit.Models
 import           Submit.Config
 import           Submit.API.Teachers
+import           Submit.API.Courses
+
+type TotalAPI = TeachersAPI :<|> CoursesAPI
+
+totalProxy :: Proxy TotalAPI
+totalProxy = Proxy
 
 app :: Config -> Application
-app = teachersApplication
+app cfg = serve totalProxy (teachersServer cfg :<|> coursesServer cfg)
