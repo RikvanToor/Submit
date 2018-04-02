@@ -103,7 +103,7 @@ connStr2 = "host=localhost dbname=submit user=submit password=test port=5432"
 buildDb :: SqlPersistT IO ()
 buildDb = runMigration migrateAll 
 
--- runDb :: (MonadReader Config m, MonadIO m) => SqlPersistT IO b -> m b
+runDb :: (MonadReader Config m, MonadIO m) => SqlPersistT IO b -> m b
 runDb query = do
     pool <- asks configPool
     liftIO $ runSqlPool query pool
