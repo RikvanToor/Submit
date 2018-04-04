@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DataKinds         #-}
+
 module Main where
 
 import qualified Control.Monad.Metrics       as M
@@ -7,8 +9,11 @@ import           Network.Wai.Handler.Warp    (run)
 import           Network.Wai.Metrics
 import           System.Environment          (lookupEnv)
 import           System.Remote.Monitoring    (forkServer, serverMetricStore)
+import           Servant
+import           Servant.Auth.Server
+import           Servant.Auth.Server.SetCookieOrphan ()
 
-import           Submit.Server                (app)
+import           Submit.Server               (API, server)
 import           Submit.Config               (Config (..), Environment (..),
                                               makePool, setLogger)
 import           Submit.Logger               (defaultLogEnv)
@@ -32,9 +37,14 @@ main = do
                      , configLogEnv = logEnv }
         logger = setLogger env
     runSqlPool buildDb pool
+    myKey <- generateKey
+    let jwtCfg = defaultJWTSettings myKey
+        cookiesCfg = defaultCookieSettings :. jwtCfg :. EmptyContext
+        api = Proxy :: Proxy (API)
     -- generateJavaScript
     putStrLn $ "Starting server on port " ++ (show port)
-    run port (app cfg)
+
+    run port $ serveWithContext api cookiesCfg (server cfg defaultCookieSettings jwtCfg)
 
 -- | Looks up a setting in the environment, with a provided default, and
 -- 'read's that information into the inferred type.

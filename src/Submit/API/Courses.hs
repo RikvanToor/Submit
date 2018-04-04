@@ -48,8 +48,8 @@ type MyTeachingsAPI    = "myteachings" :> Capture "teacherId" (Key Teacher) :> G
 -- All courses related API endpoints
 type CoursesAPI        = DetailedCourseAPI :<|> AllCoursesAPI :<|> MyCoursesAPI :<|> MyTeachingsAPI
 -- Server for CoursesAPI
-coursesServer :: Config -> Server CoursesAPI
-coursesServer cfg = detailedCourseServer cfg :<|> allCoursesServer cfg :<|> myCoursesServer cfg :<|> myTeachingsServer cfg
+coursesServer :: Config -> Entity User -> Server CoursesAPI
+coursesServer cfg (Entity uid u) = detailedCourseServer cfg :<|> allCoursesServer cfg :<|> myCoursesServer cfg :<|> myTeachingsServer cfg
 
 
 

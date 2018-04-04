@@ -30,6 +30,7 @@ library
                      , fast-logger
                      , katip >= 0.5.0.2 && < 0.6
                      , servant-server
+                     , servant-auth-server >= 0.3.2.0
                      , wai
                      , wai-extra
                      , bytestring
@@ -52,6 +53,8 @@ executable Submit-exe
   build-depends:       base >= 4.7 && < 5
                      , Submit
                      , persistent-postgresql
+                     , servant-auth-server >= 0.3.2.0
+                     , servant-server
                      , wai
                      , warp
                      , monad-logger

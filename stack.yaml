@@ -40,7 +40,7 @@ packages:
 - location: esqueleto
   extra-dep: true
 
-extra-deps: [katip-0.5.4.0]
+extra-deps: [katip-0.5.4.0, servant-auth-server-0.3.2.0, cookie-0.4.3, servant-auth-0.3.1.0]
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 # extra-deps: []
