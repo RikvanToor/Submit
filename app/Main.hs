@@ -7,8 +7,9 @@ import           Network.Wai.Handler.Warp    (run)
 import           Network.Wai.Metrics
 import           System.Environment          (lookupEnv)
 import           System.Remote.Monitoring    (forkServer, serverMetricStore)
+import           Servant
 
-import           Submit.Server                (app)
+import           Submit.Server                
 import           Submit.Config               (Config (..), Environment (..),
                                               makePool, setLogger)
 import           Submit.Logger               (defaultLogEnv)
@@ -34,7 +35,8 @@ main = do
     runSqlPool buildDb pool
     -- generateJavaScript
     putStrLn $ "Starting server on port " ++ (show port)
-    run port (app cfg)
+    let ctx = checkBasicAuth cfg :. EmptyContext
+    run port (serveWithContext authProxy ctx $  authServer cfg)
 
 -- | Looks up a setting in the environment, with a provided default, and
 -- 'read's that information into the inferred type.

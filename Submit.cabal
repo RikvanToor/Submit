@@ -55,6 +55,7 @@ executable Submit-exe
                      , wai
                      , warp
                      , monad-logger
+                     , servant-server
                      , safe
                      , monad-metrics
                      , wai-middleware-metrics
