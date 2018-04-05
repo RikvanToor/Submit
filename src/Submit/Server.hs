@@ -24,8 +24,9 @@ import           Submit.Config
 import           Submit.API.Teachers
 import           Submit.API.Courses
 import           Submit.API.Assignment
+import           Submit.API.Submissions
 
-type TotalAPI = TeachersAPI :<|> CoursesAPI :<|> AssignmentAPI
+type TotalAPI = TeachersAPI :<|> CoursesAPI :<|> AssignmentAPI :<|> SubmissionsAPI
 
 totalProxy :: Proxy TotalAPI
 totalProxy = Proxy
@@ -41,7 +42,7 @@ authServer :: Config -> Server AuthAPI
 authServer cfg = protectedServer cfg :<|> serveDirectoryFileServer "assets"
 
 protectedServer :: Config -> Server ProtectedAPI
-protectedServer cfg ua = (teachersServer cfg :<|> coursesServer cfg ua :<|> assignmentServer cfg ua)
+protectedServer cfg ua = (teachersServer cfg :<|> coursesServer cfg ua :<|> assignmentServer cfg ua :<|> submissionsServer cfg ua)
 
 checkBasicAuth :: Config -> BasicAuthCheck UserAuth
 checkBasicAuth = BasicAuthCheck . checkBasicAuth'

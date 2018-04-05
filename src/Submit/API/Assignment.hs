@@ -26,6 +26,7 @@ import           GHC.Generics (Generic)
 data AssignmentInfo = AssignmentInfo
         { assignmentInfoCourse       :: Entity Course
         , assignmentInfoName         :: Text
+        , assignmentInfoId           :: Key Assignment
         , assignmentInfoDescription  :: Text
         , assignmentInfoDeadline     :: UTCTime
         , assignmentInfoNrofstudents :: Int
@@ -37,7 +38,7 @@ instance ToJSON   AssignmentInfo
 instance FromJSON AssignmentInfo
 
 toAssignmentInfo :: Entity Assignment -> Entity Course -> Bool -> Bool -> AssignmentInfo
-toAssignmentInfo (Entity aid a) c f t = AssignmentInfo c (assignmentName a) (assignmentDescription a) 
+toAssignmentInfo (Entity aid a) c f t = AssignmentInfo c (assignmentName a) aid (assignmentDescription a) 
                                         (assignmentDeadline a) (assignmentNrofstudents a) f t
 
 type AssignmentAPI = "assignments" :> Capture "assignmentId" (Key Assignment) :> Get '[JSON] (Maybe AssignmentInfo)

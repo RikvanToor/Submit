@@ -60,10 +60,11 @@ Assignment json
     nrofstudents Int
     deriving Show Eq
 Submission json
+    assignmentid AssignmentId
     lastchangedtime UTCTime
     readme Text
-    grade Double
-    gradedby UserId
+    grade Double Maybe
+    gradedby UserId Maybe
     deriving Show Eq
 File json
     isbinary Bool

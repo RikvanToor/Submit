@@ -97,7 +97,6 @@ function myCourses() {
                 logout();
             } else if(x.status == 200) {
                 var data = x.responseJSON;
-                console.log(data);
                 var c = $('#content');
                 c.html('<h1>My courses</h1>');
                 if(data.length == 0)
@@ -120,7 +119,6 @@ function myTeachings() {
                 logout();
             } else if(x.status == 200) {
                 var data = x.responseJSON;
-                console.log(data);
                 var c = $('#content');
                 c.html('<h1>Courses you teach</h1>');
                 if(data.length == 0)
@@ -160,9 +158,24 @@ function getDetailedAssignment(id) {
                 logout();
             } else if(x.status == 200) {
                 var data = x.responseJSON;
-                console.log(data);
                 var c = $('#content');
                 c.html(drawAssignmentDetailed(data));
+            }
+        }
+    });
+}
+
+function getDetailedSubmission(assignmentid) {
+    var u = getUsername();
+    var p = getPassword();
+    $.ajax('http://'+u+':'+p+'@localhost:8081/mysubmission/'+assignmentid, {
+        complete: function(x, s) {
+            if(x. status == 403) {
+                logout();
+            } else if(x.status == 200) {
+                var data = x.responseJSON;
+                var c = $('#content');
+                c.html(drawSubmissionDetailed(data));
             }
         }
     });
@@ -229,6 +242,13 @@ function drawAssignmentDetailed(data) {
     subtitle.append(courselink);
     subtitle.append(' - '+new Date(data.assignmentInfoDeadline));
     subtitle.append(' - Maximum number of students: ' + data.assignmentInfoNrofstudents);
+    var submlink = $('<a href="#">My submission</a>');
+    submlink.click(function() {
+        getDetailedSubmission(data.assignmentInfoId);
+    });
+    var h3 = $('<h3>');
+    h3.append(submlink);
+    wrapper.append(h3);
     wrapper.append(subtitle);
     wrapper.append('<h3>Goal</h3>');
 
@@ -266,4 +286,37 @@ function drawCourseInfoRough(data) {
         "description":data.courseInfoDescription
     };
     return drawCourseRough(newdata);
+}
+
+function drawSubmissionDetailed(data) {
+    console.log(data);
+    var wrapper = $('<div>');
+    var asslink = $('<a href="#">'+data.submissionInfoAssignment.name+'</a>');
+    asslink.click(function() {
+        getDetailedAssignment(data.submissionInfoAssignment.id);
+    });
+    var h1 = $('<h1>');
+    h1.append('Submission for ');
+    h1.append(asslink);
+    wrapper.append(h1);
+    var h3 = $('<h3>By: </h3>');
+    for(var i = 0; i < data.submissionInfoStudents.length; i++) {
+        var student = data.submissionInfoStudents[i];
+        h3.append(student.id);
+        if(i < data.submissionInfoStudents.length - 1)
+            h3.append(', ');
+    }
+    wrapper.append(h3);
+    wrapper.append('<h2>Read me</h2>');
+    wrapper.append('<p>'+data.submissionInfoReadme+'</p>');
+    wrapper.append('<h2>Files</h2>');
+    var table=$('<table>');
+    table.append('<tr><th>File name</th><th>File size</th><th>Binary</th></tr>');
+    for(var i = 0; i < data.submissionInfoFiles.length; i++) {
+        var file = data.submissionInfoFiles[i];
+        table.append('<tr><td>'+file.filename+'</td><td>'+file.filesize+'</td><td>'+file.isbinary+'</td></tr>');
+    }
+    wrapper.append(table);
+
+    return wrapper;
 }
