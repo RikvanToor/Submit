@@ -21,6 +21,7 @@ library
                      , Submit.Logger
                      , Submit.API.Teachers
                      , Submit.API.Courses
+                     , Submit.API.Assignment
   build-depends:       base >= 4.7 && < 5
                      , aeson
                      , monad-control

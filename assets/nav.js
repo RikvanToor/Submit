@@ -1,0 +1,269 @@
+$(document).ready(function() {
+    if(getUsername() != undefined && getPassword() != undefined) {
+        allCourses();
+        var logout = $('<a id="logout" href="#">Log out</a>');
+        logout.click(logout);
+        $('nav').append(logout);
+    } else {
+        loginPage();
+    }
+
+    $('#login').click(loginPage);
+    $('#allcourses').click(allCourses);
+    $('#mycourses').click(myCourses);
+    $('#myteachings').click(myTeachings);
+
+});
+
+function getUsername() {
+    r = document.cookie.match(new RegExp('username=([^;]+)'));
+    if(r) return r[1];
+}
+
+function getPassword() {
+    r = document.cookie.match(new RegExp('password=([^;]+)'));
+    if(r) return r[1];
+}
+
+function loginPage() {
+    var wrapper = $("<div>");
+    var warning = $('<p style="color:red"></p>');
+    var u = $('<input name="username" class="username"><br/>');
+    var p = $('<input name="password" class="password" type="password"><br/>');
+    var button = $('<input type="submit" value="Login">');
+
+    button.click(function() {
+        username = u[0].value;
+        password = p[0].value;
+
+        $.ajax('http://'+username+':'+password+'@localhost:8081/courses',{
+            complete: function(x, s) {
+                if(x.status == 403) {
+                    // bad login
+                    warning.html = "Wrong username or password!";
+                    p.html = "";
+                } else if(x.status == 200) {
+                    // succesful login
+                    warning.html = "";
+                    document.cookie = "username="+username+";";
+                    document.cookie = "password=" + password+";";
+                    allCourses();
+                } else {
+                    warning.html = "Error!"
+                }
+            }
+        }); 
+    });
+
+    wrapper.append(warning);
+    wrapper.append(u);
+    wrapper.append(p);
+    wrapper.append(button);
+    $('#content').html(wrapper);
+}
+
+function logout() {
+    document.cookie = "username=; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+    document.cookie = "password=; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+    loginPage();
+}
+
+function allCourses() {
+    var u = getUsername();
+    var p = getPassword();
+    $.ajax('http://'+u+':'+p+'@localhost:8081/courses', {
+        complete: function(x, s) {
+            if(x.status == 403) {
+                logout();
+            } else if(x.status == 200) {
+                var data = x.responseJSON;
+                var c = $('#content');
+                c.html('<h1>All courses</h1>');
+                for(var i = 0; i < data.length; i++) {
+                    var d = data[i];
+                    c.append(drawCourseRough(d));
+                }
+            }
+        }
+    });
+}
+
+function myCourses() {
+    var u = getUsername();
+    var p = getPassword();
+    $.ajax('http://'+u+':'+p+'@localhost:8081/mycourses', {
+        complete: function(x, s) {
+            if(x.status == 403) {
+                logout();
+            } else if(x.status == 200) {
+                var data = x.responseJSON;
+                console.log(data);
+                var c = $('#content');
+                c.html('<h1>My courses</h1>');
+                if(data.length == 0)
+                    c.append('You do not follow any courses!');
+                for(var i = 0; i < data.length; i++) {
+                    var d = data[i];
+                    c.append(drawCourseInfoRough(d));
+                }
+            }
+        }
+    });
+}
+
+function myTeachings() {
+    var u = getUsername();
+    var p = getPassword();
+    $.ajax('http://'+u+':'+p+'@localhost:8081/myteachings', {
+        complete: function(x, s) {
+            if(x.status == 403) {
+                logout();
+            } else if(x.status == 200) {
+                var data = x.responseJSON;
+                console.log(data);
+                var c = $('#content');
+                c.html('<h1>Courses you teach</h1>');
+                if(data.length == 0)
+                    c.append('You do not teach any courses!');
+                for(var i = 0; i < data.length; i++) {
+                    var d = data[i];
+                    c.append(drawCourseInfoRough(d));
+                }
+            }
+        }
+    });
+}
+
+function getDetailedCourse(coursecode) {
+    var u = getUsername();
+    var p = getPassword();
+    $.ajax('http://'+u+':'+p+'@localhost:8081/courses/'+coursecode, {
+        complete: function(x, s) {
+            if(x. status == 403) {
+                logout();
+            } else if(x.status == 200) {
+                var data = x.responseJSON;
+                
+                var c = $('#content');
+                c.html(drawCourseDetailed(data));
+            }
+        }
+    });
+}
+
+function getDetailedAssignment(id) {
+    var u = getUsername();
+    var p = getPassword();
+    $.ajax('http://'+u+':'+p+'@localhost:8081/assignments/'+id, {
+        complete: function(x, s) {
+            if(x. status == 403) {
+                logout();
+            } else if(x.status == 200) {
+                var data = x.responseJSON;
+                console.log(data);
+                var c = $('#content');
+                c.html(drawAssignmentDetailed(data));
+            }
+        }
+    });
+}
+
+function drawCourseDetailed(data) {
+    if(data == null) {
+        return "<p>Course ID not found</p>";
+    }
+    var wrapper = $('<div>');
+    var title=$('<h1>'+data.courseInfoName+'</h1>');
+    wrapper.append(title);
+    wrapper.append('<h4>'+data.courseInfoCourseCode+'</h4>');
+    wrapper.append('<h3>Description</h3>');
+    wrapper.append('<p>'+data.courseInfoDescription+'</p>');
+    var teachers = $('<div>');
+    teachers.append('<h3>Teachers</h3>');
+    if(data.courseInfoTeachers.length == 0)
+        teachers.append('<p>There are no teachers for this course. Anarchy!</p>');
+    for(var i = 0; i < data.courseInfoTeachers.length; i++) {
+        var d = data.courseInfoTeachers[i];
+        teachers.append(drawTeacherInfo(d));
+    }
+    wrapper.append(teachers);
+    var assignments = $('<div>');
+    assignments.append('<h3>Assignments</h3>');
+    if(data.assignments.length == 0)
+        assignments.append('<p>There are no assignments!</p>');
+    for(var i = 0; i < data.assignments.length; i++) {
+        var d = data.assignments[i];
+        assignments.append(drawAssignmentRough(d));
+    }
+    wrapper.append(assignments);
+    return wrapper;
+}
+
+function drawAssignmentRough(data) {
+    var wrapper = $('<div>');
+    wrapper.append('<h4>'+data.name+'</h4>');
+    wrapper.append('<p>Deadline: '+new Date(data.deadline)+'</p>');
+    var link = $('<a href="#">Read more</a>')
+
+    link.click(function() {
+        getDetailedAssignment(data.id);
+    });
+
+    var p = $('<p>');
+    p.append(link);
+    wrapper.append(p);
+    return wrapper;
+}
+
+function drawAssignmentDetailed(data) {
+    if(data == null) {
+        return '<p>Assignment ID not found</p>';
+    }
+    var wrapper = $('<div>');
+    wrapper.append('<h1>'+data.assignmentInfoName+'</h1>');
+    var subtitle = $('<h4>');
+    var courselink = $('<a href="#">'+data.assignmentInfoCourse.coursename+'</a>');
+    courselink.click(function() {
+        getDetailedCourse(data.assignmentInfoCourse.coursecode);
+    });
+    subtitle.append(courselink);
+    subtitle.append(' - '+new Date(data.assignmentInfoDeadline));
+    subtitle.append(' - Maximum number of students: ' + data.assignmentInfoNrofstudents);
+    wrapper.append(subtitle);
+    wrapper.append('<h3>Goal</h3>');
+
+    wrapper.append('<p>'+data.assignmentInfoDescription+'</p>');
+
+    return wrapper;
+}
+
+function drawTeacherInfo(data) {
+    var table = '<table><tr><th>Name:</th><td>'+data.teacherInfoName+'</td></tr>' +
+        '<tr><th>Office:</th><td>'+data.teacherInfoOffice+'</td></tr></table>';
+    return $(table);
+}
+
+function drawCourseRough(data) {
+    var wrapper = $('<div>');
+    wrapper.append('<h2>'+data.coursename+'</h2>');
+    wrapper.append('<h4>'+data.coursecode+'</h4>');
+    wrapper.append('<h3>Description</h3>');
+    wrapper.append('<p>'+data.description+'</p>');
+    var link = $('<a href="#">Read more</a>');
+    link.click(function() {
+        getDetailedCourse(data.coursecode);
+    });
+    var p = $('<p>');
+    p.append(link);
+    wrapper.append(p);
+    return wrapper;
+}
+
+function drawCourseInfoRough(data) {
+    var newdata = {
+        "coursename":data.courseInfoName,
+        "coursecode":data.courseInfoCourseCode,
+        "description":data.courseInfoDescription
+    };
+    return drawCourseRough(newdata);
+}

@@ -10,6 +10,7 @@
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE DeriveGeneric              #-}
 
 module Submit.Models where
 
@@ -24,8 +25,9 @@ import qualified Database.Esqueleto as E
 import           Database.Esqueleto   ((^.))
 import           Data.Text
 import           Data.Time.Clock (UTCTime)
+import           Data.Aeson
+import           GHC.Generics
 import           Submit.Config
-
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 User json
@@ -98,3 +100,16 @@ runDb :: (MonadReader Config m, MonadIO m) => SqlPersistT IO b -> m b
 runDb query = do
     pool <- asks configPool
     liftIO $ runSqlPool query pool
+
+
+data UserAuth = UserAuth
+    { username  :: Text
+    , password  :: Text
+    , name      :: Text
+    , userid    :: UserId
+    , studentid :: Maybe StudentId
+    , teacherid :: Maybe TeacherId
+    } deriving (Eq, Show, Generic)
+
+instance FromJSON UserAuth
+instance ToJSON UserAuth

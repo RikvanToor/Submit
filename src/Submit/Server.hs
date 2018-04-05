@@ -23,34 +23,25 @@ import           Submit.Models
 import           Submit.Config
 import           Submit.API.Teachers
 import           Submit.API.Courses
+import           Submit.API.Assignment
 
-type TotalAPI = TeachersAPI :<|> CoursesAPI
+type TotalAPI = TeachersAPI :<|> CoursesAPI :<|> AssignmentAPI
 
 totalProxy :: Proxy TotalAPI
 totalProxy = Proxy
 
-app :: Config -> Application
-app cfg = serve totalProxy (teachersServer cfg :<|> coursesServer cfg)
+type ProtectedAPI = BasicAuth "private" UserAuth :> TotalAPI
 
-data UserAuth = UserAuth
-    { username  :: Text
-    , password  :: Text
-    , name      :: Text
-    , userid    :: UserId
-    , studentid :: Maybe StudentId
-    , teacherid :: Maybe TeacherId
-    } deriving (Eq, Show, Generic)
-
-instance FromJSON UserAuth
-instance ToJSON UserAuth
-
-type AuthAPI = BasicAuth "private" UserAuth :> TotalAPI
+type AuthAPI =  ProtectedAPI :<|> Raw
 
 authProxy :: Proxy AuthAPI
 authProxy = Proxy
 
 authServer :: Config -> Server AuthAPI
-authServer cfg ua = (teachersServer cfg :<|> coursesServer cfg)
+authServer cfg = protectedServer cfg :<|> serveDirectoryFileServer "assets"
+
+protectedServer :: Config -> Server ProtectedAPI
+protectedServer cfg ua = (teachersServer cfg :<|> coursesServer cfg ua :<|> assignmentServer cfg ua)
 
 checkBasicAuth :: Config -> BasicAuthCheck UserAuth
 checkBasicAuth = BasicAuthCheck . checkBasicAuth'

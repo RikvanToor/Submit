@@ -42,14 +42,14 @@ type DetailedCourseAPI = "courses" :> Capture "coursecode" Text :> Get '[JSON] (
 -- host/courses returns general data about all courses
 type AllCoursesAPI     = "courses" :> Get '[JSON] [Entity Course]
 -- host/mycourses/:key: returns detailed data about the courses a student is following
-type MyCoursesAPI      = "mycourses" :> Capture "studentId" (Key Student) :> Get '[JSON] [CourseInfo]
+type MyCoursesAPI      = "mycourses" :> Get '[JSON] [CourseInfo]
 -- host/myteachings/:key: returns detailed data about the courses a teacher is teaching
-type MyTeachingsAPI    = "myteachings" :> Capture "teacherId" (Key Teacher) :> Get '[JSON] [CourseInfo]
+type MyTeachingsAPI    = "myteachings" :> Get '[JSON] [CourseInfo]
 -- All courses related API endpoints
 type CoursesAPI        = DetailedCourseAPI :<|> AllCoursesAPI :<|> MyCoursesAPI :<|> MyTeachingsAPI
 -- Server for CoursesAPI
-coursesServer :: Config -> Server CoursesAPI
-coursesServer cfg = detailedCourseServer cfg :<|> allCoursesServer cfg :<|> myCoursesServer cfg :<|> myTeachingsServer cfg
+coursesServer :: Config -> UserAuth -> Server CoursesAPI
+coursesServer cfg ua = detailedCourseServer cfg :<|> allCoursesServer cfg :<|> (myCoursesServer cfg ua) :<|> (myTeachingsServer cfg ua)
 
 
 
@@ -77,27 +77,31 @@ allCoursesServer cfg = Handler $ runReaderT
         cfg
 
 
-myCoursesServerT :: MonadIO m => ServerT MyCoursesAPI (AppT m)
+myCoursesServerT :: MonadIO m => Key Student -> ServerT MyCoursesAPI (AppT m)
 myCoursesServerT = runDb . getMyCourses
 
 myCoursesProxy :: Proxy MyCoursesAPI
 myCoursesProxy = Proxy
 
-myCoursesServer :: Config -> Server MyCoursesAPI
-myCoursesServer cfg k = Handler $ runReaderT
-        (hoistServer myCoursesProxy runApp myCoursesServerT $ k)
+myCoursesServer :: Config -> UserAuth -> Server MyCoursesAPI
+myCoursesServer cfg ua = case studentid ua of
+    Nothing -> return []
+    (Just k) -> Handler $ runReaderT
+        (hoistServer myCoursesProxy runApp $ myCoursesServerT k)
         cfg
 
 
-myTeachingsServerT :: MonadIO m => ServerT MyTeachingsAPI (AppT m)
+myTeachingsServerT :: MonadIO m => Key Teacher -> ServerT MyTeachingsAPI (AppT m)
 myTeachingsServerT = runDb . getMyTeachings
 
 myTeachingsProxy :: Proxy MyTeachingsAPI
 myTeachingsProxy = Proxy
 
-myTeachingsServer :: Config -> Server MyTeachingsAPI
-myTeachingsServer cfg k = Handler $ runReaderT
-        (hoistServer myTeachingsProxy runApp myTeachingsServerT $ k)
+myTeachingsServer :: Config -> UserAuth -> Server MyTeachingsAPI
+myTeachingsServer cfg ua = case teacherid ua of
+    Nothing -> return []
+    (Just k) -> Handler $ runReaderT
+        (hoistServer myTeachingsProxy runApp $ myTeachingsServerT k)
         cfg
 
 
