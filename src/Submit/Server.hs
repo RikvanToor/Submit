@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds       #-}
 {-# LANGUAGE TypeOperators   #-}
-{-# LANGUAGE DeriveGeneric   #-}
 
 module Submit.Server where
 
@@ -42,7 +41,7 @@ authServer :: Config -> Server AuthAPI
 authServer cfg = protectedServer cfg :<|> serveDirectoryFileServer "assets"
 
 protectedServer :: Config -> Server ProtectedAPI
-protectedServer cfg ua = (teachersServer cfg :<|> coursesServer cfg ua :<|> assignmentServer cfg ua :<|> submissionsServer cfg ua)
+protectedServer cfg ua = teachersServer cfg :<|> coursesServer cfg ua :<|> assignmentServer cfg ua :<|> submissionsServer cfg ua
 
 checkBasicAuth :: Config -> BasicAuthCheck UserAuth
 checkBasicAuth = BasicAuthCheck . checkBasicAuth'
@@ -70,14 +69,14 @@ getLoginData username password = do
         (Just (Entity uid user)) -> do
             st <- E.select $
                 from $ \stu -> do
-                    where_ ((stu ^. StudentUserid E.==. val uid))
+                    where_ (stu ^. StudentUserid E.==. val uid)
                     return stu
-            let stid = maybe Nothing (Just . entityKey) $ listToMaybe st
+            let stid = entityKey <$> listToMaybe st
             te <- E.select $
                 from $ \t -> do
-                    where_ ((t ^. TeacherUserid E.==. val uid))
+                    where_ (t ^. TeacherUserid E.==. val uid)
                     return t
-            let teid = maybe Nothing (Just . entityKey) $ listToMaybe te
+            let teid = entityKey <$> listToMaybe te
             let ua = UserAuth { username  = userUsername user
                               , password  = userPassword user
                               , name      = userName     user

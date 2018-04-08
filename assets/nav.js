@@ -175,7 +175,42 @@ function getDetailedSubmission(assignmentid) {
             } else if(x.status == 200) {
                 var data = x.responseJSON;
                 var c = $('#content');
-                c.html(drawSubmissionDetailed(data));
+                c.html(drawSubmissionDetailed(data, "student"));
+            }
+        }
+    });
+}
+
+function getAllSubmisions(assignmentid) {
+    var u = getUsername();
+    var p = getPassword();
+    $.ajax('http://'+u+':'+p+'@localhost:8081/allsubmissions/'+assignmentid, {
+        complete: function(x, s) {
+            if(x. status == 403) {
+                logout();
+            } else if(x.status == 200) {
+                var data = x.responseJSON;
+                var c = $('#content');
+                c.html('<h1>Submissions</h1>');
+                for(var i = 0; i < data.length; i++) {
+                    c.append(drawSubmissionRough(data[i]));
+                }
+            }
+        }
+    });
+}
+
+function getTeacherSubmission(submissionid) {
+    var u = getUsername();
+    var p = getPassword();
+    $.ajax('http://'+u+':'+p+'@localhost:8081/submissions/'+submissionid, {
+        complete: function(x, s) {
+            if(x. status == 403) {
+                logout();
+            } else if(x.status == 200) {
+                var data = x.responseJSON;
+                var c = $('#content');
+                c.html(drawSubmissionDetailed(data, "teacher"));
             }
         }
     });
@@ -242,13 +277,24 @@ function drawAssignmentDetailed(data) {
     subtitle.append(courselink);
     subtitle.append(' - '+new Date(data.assignmentInfoDeadline));
     subtitle.append(' - Maximum number of students: ' + data.assignmentInfoNrofstudents);
-    var submlink = $('<a href="#">My submission</a>');
-    submlink.click(function() {
-        getDetailedSubmission(data.assignmentInfoId);
-    });
-    var h3 = $('<h3>');
-    h3.append(submlink);
-    wrapper.append(h3);
+    if(data.assignmentInfoFollowing) {
+        var submlink = $('<a href="#">My submission</a>');
+        submlink.click(function() {
+            getDetailedSubmission(data.assignmentInfoId);
+        });
+        var h3 = $('<h3>');
+        h3.append(submlink);
+        wrapper.append(h3);
+    }
+    if(data.assignmentInfoTeaching) {
+        var submlink = $('<a href="#">View all submissions</a>');
+        submlink.click(function() {
+            getAllSubmisions(data.assignmentInfoId);
+        });
+        var h3 = $('<h3>');
+        h3.append(submlink);
+        wrapper.append(h3);
+    }
     wrapper.append(subtitle);
     wrapper.append('<h3>Goal</h3>');
 
@@ -288,8 +334,7 @@ function drawCourseInfoRough(data) {
     return drawCourseRough(newdata);
 }
 
-function drawSubmissionDetailed(data) {
-    console.log(data);
+function drawSubmissionDetailed(data, role) {
     var wrapper = $('<div>');
     var asslink = $('<a href="#">'+data.submissionInfoAssignment.name+'</a>');
     asslink.click(function() {
@@ -302,7 +347,7 @@ function drawSubmissionDetailed(data) {
     var h3 = $('<h3>By: </h3>');
     for(var i = 0; i < data.submissionInfoStudents.length; i++) {
         var student = data.submissionInfoStudents[i];
-        h3.append(student.id);
+        h3.append(student.studentInfoName);
         if(i < data.submissionInfoStudents.length - 1)
             h3.append(', ');
     }
@@ -310,13 +355,135 @@ function drawSubmissionDetailed(data) {
     wrapper.append('<h2>Read me</h2>');
     wrapper.append('<p>'+data.submissionInfoReadme+'</p>');
     wrapper.append('<h2>Files</h2>');
-    var table=$('<table>');
+    var table=$('<table id="files">');
     table.append('<tr><th>File name</th><th>File size</th><th>Binary</th></tr>');
     for(var i = 0; i < data.submissionInfoFiles.length; i++) {
         var file = data.submissionInfoFiles[i];
-        table.append('<tr><td>'+file.filename+'</td><td>'+file.filesize+'</td><td>'+file.isbinary+'</td></tr>');
+        drawFile(file,table);
     }
+    
     wrapper.append(table);
+    if(role == "student") {
+        wrapper.append(drawUploadForm(data.submissionInfoId, table));
+        wrapper.append(drawGrade(data));
+    }
+    if(role == "teacher") {
+        wrapper.append(drawGrading(data));
+    }
+    return wrapper;
+}
 
+function drawGrade(data) {
+    var wrapper = $('<div>');
+    if(data.submissionInfoGradedby && data.submissionInfoGrade) {
+        wrapper.append('<p>Grade: '+data.submissionInfoGrade+'</p>');
+        wrapper.append('<p>Graded by: '+data.submissionInfoGradedby.name+'</p>');
+        return wrapper;
+    }
+    return "";
+}
+
+function drawGrading(data) {
+    var wrapper = $('<div>');
+    var status = $('<p>');
+    wrapper.append(status);
+    wrapper.append('Grade: ');
+    var input = $('<input placeholder="Grade" value="'+data.submissionInfoGrade+'">');
+    wrapper.append(input);
+    var button = $('<input type="submit" value="Update grade">')
+    button.click(function() {
+        updateGrade(data.submissionInfoId, input.val(), status);
+    })
+    wrapper.append(button);
+    return wrapper;
+}
+
+function updateGrade(submissionid, grade, status) {
+    var u = getUsername();
+    var p = getPassword();
+    $.ajax('http://'+u+':'+p+'@localhost:8081/grade/'+submissionid+'/'+grade, {
+        complete: function(x, s) {
+            if(x. status == 403) {
+                logout();
+            } else if(x.status == 200) {
+                var data = x.responseJSON;
+                if(data) {
+                    status.text("Grade updated!");
+                }
+                else {
+                    status.text("Something went wrong! Are you actually the course's teacher?");
+                }
+            } else {
+                status.text("Something went wrong! Did you input a valid number?");
+            }
+        }
+    });
+}
+
+function drawFile(file, table) {
+    table.append('<tr><td>'+file.filename+'</td><td style="text-align: right">'+file.filesize+'</td></tr>');
+}
+
+function drawUploadForm(submissionid, outputTable) {
+    var u = getUsername();
+    var p = getPassword();
+    var form = $('<form method="post" accept-charset="utf-8" enctype="multipart/form-data" action="http://'
+                  +u+':'+p+'@localhost:8081/upload/'+submissionid+'">');
+    var file = $('<input type="file" name="file">');
+    var button = $('<input type="submit" value="Upload">');
+
+    button.click(function(e) {
+        e.preventDefault();
+        //Send file
+        var fd = new FormData(form[0]);
+        $.ajax(form.attr('action'), {
+            contentType: false,
+            processData: false,
+            cache: false,
+            enctype: "multipart/form-data",
+            type: "POST",
+            data: fd,
+            complete: function(x, s) {
+                if(x.status == 200) {
+                    drawFile(x.responseJSON, outputTable);
+                }
+                else {
+                    outputTable.after('<p style="color:red">Something went wrong! Are you authorized to do this?</p>');
+                }
+            }
+        });
+    });
+
+    form.append(file);
+    form.append(button);
+    return form;
+}
+
+function drawSubmissionRough(data) {
+    var wrapper = $('<div>');
+    var h3 = $('<h3>Submission by </h3>');
+    for(var i = 0; i < data.submissionInfoStudents.length; i++) {
+        h3.append(data.submissionInfoStudents[i].studentInfoName);
+        if(i < data.submissionInfoStudents.length - 1) {
+            h3.append(', ');
+        }
+    }
+    wrapper.append(h3);
+    var grade = data.submissionInfoGrade;
+    grade = grade ? grade : '?';
+    //if(data.submissionInfoGradedby)
+    var gradedby = data.submissionInfoGradedby;
+    gradedby = gradedby ? gradedby.name : '?';
+
+    wrapper.append('<p>Grade: '+grade+'</p>');
+    wrapper.append('<p>Graded by: '+gradedby+'</p>');
+
+    var link = $('<a href="#">Read more</a>');
+
+    link.click(function() {
+        getTeacherSubmission(data.submissionInfoId);
+    })
+
+    wrapper.append(link);
     return wrapper;
 }

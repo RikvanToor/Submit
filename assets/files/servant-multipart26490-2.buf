@@ -23,7 +23,6 @@ library
                      , Submit.API.Courses
                      , Submit.API.Assignment
                      , Submit.API.Submissions
-                     , Submit.API.Students
   build-depends:       base >= 4.7 && < 5
                      , aeson
                      , directory

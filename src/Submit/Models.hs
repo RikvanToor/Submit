@@ -10,7 +10,6 @@
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE TypeFamilies               #-}
-{-# LANGUAGE DeriveGeneric              #-}
 
 module Submit.Models where
 
@@ -70,6 +69,7 @@ File json
     isbinary Bool
     filesize Int
     filename Text
+    filepath Text
     submissionid SubmissionId
     deriving Show Eq
 Follows json
