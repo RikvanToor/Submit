@@ -35,7 +35,7 @@ instance ToJSON   CourseInfo
 instance FromJSON CourseInfo
 
 toCourseInfo :: Entity Course -> [TeacherInfo] -> [Entity Assignment] -> CourseInfo
-toCourseInfo (Entity cid c) ts as = CourseInfo (courseCoursecode c) (courseDescription c) (courseCoursename c) ts as
+toCourseInfo (Entity cid c) = CourseInfo (courseCoursecode c) (courseDescription c) (courseCoursename c)
 
 -- host/courses/AFP returns data of course with coursecode "AFP"
 type DetailedCourseAPI = "courses" :> Capture "coursecode" Text :> Get '[JSON] (Maybe CourseInfo)
@@ -49,7 +49,10 @@ type MyTeachingsAPI    = "myteachings" :> Get '[JSON] [CourseInfo]
 type CoursesAPI        = DetailedCourseAPI :<|> AllCoursesAPI :<|> MyCoursesAPI :<|> MyTeachingsAPI
 -- Server for CoursesAPI
 coursesServer :: Config -> UserAuth -> Server CoursesAPI
-coursesServer cfg ua = detailedCourseServer cfg :<|> allCoursesServer cfg :<|> (myCoursesServer cfg ua) :<|> (myTeachingsServer cfg ua)
+coursesServer cfg ua = detailedCourseServer cfg 
+                  :<|> allCoursesServer cfg 
+                  :<|> myCoursesServer cfg ua 
+                  :<|> myTeachingsServer cfg ua
 
 
 
@@ -61,7 +64,7 @@ detailedCourseProxy = Proxy
 
 detailedCourseServer :: Config -> Server DetailedCourseAPI
 detailedCourseServer cfg t = Handler $ runReaderT 
-        (hoistServer detailedCourseProxy runApp detailedCourseServerT $ t) 
+        (hoistServer detailedCourseProxy runApp detailedCourseServerT t) 
         cfg
 
 
@@ -105,20 +108,20 @@ myTeachingsServer cfg ua = case teacherid ua of
         cfg
 
 
-getCourseAssignments :: MonadIO m => (Entity Course) -> SqlPersistT m [Entity Assignment]
+getCourseAssignments :: MonadIO m => Entity Course -> SqlPersistT m [Entity Assignment]
 getCourseAssignments (Entity cid _) = do
     t <- liftIO getCurrentTime
-    s <- E.select $
-              from $ \a -> do
-              where_ ((a ^. AssignmentCoursecode E.==. val cid) E.&&. (val t E.<. a ^. AssignmentDeadline))
-              return a
-    return s
+    E.select $
+        from $ \a -> do
+        where_ ((a ^. AssignmentCoursecode E.==. val cid) E.&&. (val t E.<. a ^. AssignmentDeadline))
+        return a
 
-getCourseTeachers :: MonadIO m => (Entity Course) -> SqlPersistT m [TeacherInfo]
+getCourseTeachers :: MonadIO m => Entity Course -> SqlPersistT m [TeacherInfo]
 getCourseTeachers (Entity cid _) = do
     s <- E.select $
               from $ \(tc,u,t) -> do
-              where_ ((tc ^. TeachesCourseid E.==. val cid) E.&&. (tc ^. TeachesTeacherid E.==. t ^. TeacherId) E.&&. (t ^. TeacherUserid E.==. u ^. UserId))
+              where_ ((tc ^. TeachesCourseid E.==. val cid) E.&&. ((tc ^. TeachesTeacherid) E.==. (t ^. TeacherId)) E.&&. 
+                        ((t ^. TeacherUserid) E.==. (u ^. UserId)))
               return (u, t)
     return $ fmap toTeacherInfo s
 
@@ -135,20 +138,20 @@ getCourse code = do
               where_ (c ^. CourseCoursecode E.==. val code)
               return c
     let c = listToMaybe s
-    maybe (return Nothing) (\x -> Just <$> (courseToCourseInfoQuery x)) c
+    maybe (return Nothing) (fmap Just . courseToCourseInfoQuery) c
 
 
 getAllCourses :: MonadIO m => SqlPersistT m [Entity Course]
 getAllCourses = E.select $
                     from $ \c -> do
-                    where_ (c ^. CourseCoursecode E.==. c ^. CourseCoursecode) -- This seems redundant, but it tells Esqueleto that we need Entity Course values
+                    where_ ((c ^. CourseCoursecode) E.==. (c ^. CourseCoursecode)) -- This seems redundant, but it tells Esqueleto that we need Entity Course values
                     return c
 
 getMyCourses :: MonadIO m => Key Student -> SqlPersistT m [CourseInfo]
 getMyCourses u = do
     cs <- E.select $
               from $ \(f,c) -> do
-              where_ ((f ^. FollowsStudentid E.==. val u) E.&&. (f ^. FollowsCourseid E.==. c ^. CourseId))
+              where_ ((f ^. FollowsStudentid E.==. val u) E.&&. ((f ^. FollowsCourseid) E.==. (c ^. CourseId)))
               return c
     let cis = fmap courseToCourseInfoQuery cs
     sequenceA cis
@@ -157,7 +160,7 @@ getMyTeachings :: MonadIO m => Key Teacher -> SqlPersistT m [CourseInfo]
 getMyTeachings u = do
     cs <- E.select $
               from $ \(f,c) -> do
-              where_ ((f ^. TeachesTeacherid E.==. val u) E.&&. (f ^. TeachesCourseid E.==. c ^. CourseId))
+              where_ ((f ^. TeachesTeacherid E.==. val u) E.&&. ((f ^. TeachesCourseid) E.==. (c ^. CourseId)))
               return c
     let cis = fmap courseToCourseInfoQuery cs
     sequenceA cis

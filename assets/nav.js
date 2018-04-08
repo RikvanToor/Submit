@@ -1,9 +1,6 @@
 $(document).ready(function() {
     if(getUsername() != undefined && getPassword() != undefined) {
-        allCourses();
-        var logout = $('<a id="logout" href="#">Log out</a>');
-        logout.click(logout);
-        $('nav').append(logout);
+        home();
     } else {
         loginPage();
     }
@@ -14,6 +11,13 @@ $(document).ready(function() {
     $('#myteachings').click(myTeachings);
 
 });
+
+function home() {
+    allCourses();
+    var logoutlink = $('<a id="logout" href="#">Log out</a>');
+    logoutlink.click(logout);
+    $('nav').append(logoutlink);
+}
 
 function getUsername() {
     r = document.cookie.match(new RegExp('username=([^;]+)'));
@@ -47,7 +51,7 @@ function loginPage() {
                     warning.html = "";
                     document.cookie = "username="+username+";";
                     document.cookie = "password=" + password+";";
-                    allCourses();
+                    home();
                 } else {
                     warning.html = "Error!"
                 }
@@ -63,8 +67,9 @@ function loginPage() {
 }
 
 function logout() {
-    document.cookie = "username=; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
-    document.cookie = "password=; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+    $.removeCookie('username');
+    $.removeCookie('password');
+    $('#logout').remove();
     loginPage();
 }
 

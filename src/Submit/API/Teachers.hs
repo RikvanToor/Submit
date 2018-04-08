@@ -45,7 +45,7 @@ allTeachers :: MonadIO m => SqlPersistT m [TeacherInfo]
 allTeachers = do
   s <- E.select $
               from $ \(u,t) -> do
-              where_ (u ^. UserId E.==. t ^. TeacherUserid)
+              where_ ((u ^. UserId) E.==. (t ^. TeacherUserid))
               return (u,t)
   return $ fmap toTeacherInfo s
   

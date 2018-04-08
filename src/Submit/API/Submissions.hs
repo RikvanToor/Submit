@@ -35,7 +35,7 @@ data SubmissionInfo = SubmissionInfo
         , submissionInfoFiles           :: [Entity File]
         , submissionInfoLastchangedtime :: UTCTime
         , submissionInfoReadme          :: Text
-        , submissionInfoGrade           :: Maybe (Double)
+        , submissionInfoGrade           :: Maybe Double
         , submissionInfoGradedby        :: Maybe (Entity User)
         , submissionInfoId              :: Key Submission
         } deriving (Show, Generic)
@@ -70,8 +70,8 @@ instance FromMultipart Tmp FileUpload where
 type TempAPI = "upload" :> Capture "submissionId" (Key Submission) :> MultipartForm Tmp FileUpload :> Post '[JSON] (Maybe (Entity File))
 
 uploadFileServer :: Config -> UserAuth -> Server UploadFileAPI
-uploadFileServer cfg ua k f = (Handler $ (runReaderT $ (hoistServer (Proxy :: Proxy TempAPI) runApp (uploadFileServerT ua)) k f) cfg) >>=
-    (Handler . ExceptT . return . (maybe (Left err401) Right))
+uploadFileServer cfg ua k f = (Handler $ (runReaderT $ hoistServer (Proxy :: Proxy TempAPI) runApp (uploadFileServerT ua) k f) cfg) >>=
+    (Handler . ExceptT . return . maybe (Left err401) Right)
 
 uploadFileServerT :: MonadIO m => UserAuth -> ServerT TempAPI (AppT m)
 uploadFileServerT ua k f = runDb $ processFile ua k f 
@@ -82,7 +82,7 @@ uploadFileProxy = Proxy
 type AllSubmissionsAPI = "allsubmissions" :> Capture "assignmentId" (Key Assignment) :> Get '[JSON] [SubmissionInfo]
 
 allSubmissionsServer :: Config -> UserAuth -> Server AllSubmissionsAPI
-allSubmissionsServer cfg ua k = Handler $ (runReaderT $ (hoistServer allSubmissionsProxy runApp (allSubmissionsServerT ua)) k) cfg
+allSubmissionsServer cfg ua k = Handler $ (runReaderT $ hoistServer allSubmissionsProxy runApp (allSubmissionsServerT ua) k) cfg
 
 allSubmissionsServerT :: MonadIO m => UserAuth -> ServerT AllSubmissionsAPI (AppT m)
 allSubmissionsServerT ua = runDb . getAllSubmissions ua
@@ -96,7 +96,7 @@ toSubmissionInfo :: Entity Submission -> Entity Assignment -> [StudentInfo] -> [
 toSubmissionInfo (Entity sid s) a us fs g = SubmissionInfo a us fs (submissionLastchangedtime s) (submissionReadme s) (submissionGrade s) g sid
 
 mySubmissionServer :: Config -> UserAuth -> Server MySubmissionsAPI
-mySubmissionServer cfg ua k = Handler $ (runReaderT $ (hoistServer mySubmissionProxy runApp (mySubmissionServerT ua)) k) cfg
+mySubmissionServer cfg ua k = Handler $ (runReaderT $ hoistServer mySubmissionProxy runApp (mySubmissionServerT ua) k) cfg
 
 mySubmissionServerT :: MonadIO m => UserAuth -> ServerT MySubmissionsAPI (AppT m)
 mySubmissionServerT ua = runDb . getMySubmission ua
@@ -107,7 +107,7 @@ mySubmissionProxy = Proxy
 type TeacherSubmissionAPI = "submissions" :> Capture "submissionId" (Key Submission) :> Get '[JSON] (Maybe SubmissionInfo)
 
 teacherSubmissionServer :: Config -> UserAuth -> Server TeacherSubmissionAPI
-teacherSubmissionServer cfg ua k = Handler $ (runReaderT $ (hoistServer teacherSubmissionProxy runApp (teacherSubmissionServerT ua)) k) cfg
+teacherSubmissionServer cfg ua k = Handler $ (runReaderT $ hoistServer teacherSubmissionProxy runApp (teacherSubmissionServerT ua) k) cfg
 
 teacherSubmissionServerT :: MonadIO m => UserAuth -> ServerT TeacherSubmissionAPI (AppT m)
 teacherSubmissionServerT ua = runDb . getTeacherSubmission ua
@@ -118,10 +118,10 @@ teacherSubmissionProxy = Proxy
 type GradeAPI = "grade" :> Capture "submissionId" (Key Submission) :> Capture "grade" Double :> Get '[JSON] Bool
 
 gradeServer :: Config -> UserAuth -> Server GradeAPI
-gradeServer cfg ua k d = Handler $ (runReaderT $ (hoistServer gradeProxy runApp (gradeServerT ua)) k d) cfg
+gradeServer cfg ua k d = Handler $ (runReaderT $ hoistServer gradeProxy runApp (gradeServerT ua) k d) cfg
 
 gradeServerT :: MonadIO m => UserAuth -> ServerT GradeAPI (AppT m)
-gradeServerT ua k = runDb . (updateGrade ua k)
+gradeServerT ua k = runDb . updateGrade ua k
 
 gradeProxy :: Proxy GradeAPI
 gradeProxy = Proxy
@@ -132,11 +132,12 @@ updateGrade ua k d = case teacherid ua of
     (Just tid) -> do
         bs <- E.select $
             from $ \(a,c,t,s) -> do
-            where_ ((s ^. SubmissionId E.==. val k) E.&&.
-                    (s ^. SubmissionAssignmentid E.==. a ^. AssignmentId) E.&&.
-                    (a ^. AssignmentCoursecode E.==. c ^. CourseId) E.&&.
-                    (t ^. TeachesCourseid E.==. c ^. CourseId) E.&&.
-                    (t ^. TeachesTeacherid E.==. val tid))
+            where_ (((s ^. SubmissionId) E.==. val k) E.&&.
+                    ((s ^. SubmissionAssignmentid) E.==. (a ^. AssignmentId)) E.&&.
+                    ((a ^. AssignmentCoursecode) E.==. (c ^. CourseId)) E.&&.
+                    ((t ^. TeachesCourseid) E.==. (c ^. CourseId)) E.&&.
+                    ((t ^. TeachesTeacherid) E.==. val tid))
+            return (a,c,t,s)
         let b = listToMaybe bs
         case b of
             Nothing -> return False
@@ -155,10 +156,10 @@ getTeacherSubmission ua k = case teacherid ua of
     (Just tid) -> do
         ss <- E.select $
             from $ \(a,c,t,s) -> do
-            where_ ((s ^. SubmissionAssignmentid E.==. a ^. AssignmentId) E.&&.
-                    (a ^. AssignmentCoursecode E.==. c ^. CourseId) E.&&.
-                    (t ^. TeachesCourseid E.==. c ^. CourseId) E.&&.
-                    (t ^. TeachesTeacherid E.==. val tid))
+            where_ (((s ^. SubmissionAssignmentid) E.==. (a ^. AssignmentId)) E.&&.
+                    ((a ^. AssignmentCoursecode) E.==. (c ^. CourseId)) E.&&.
+                    ((t ^. TeachesCourseid) E.==. (c ^. CourseId)) E.&&.
+                    ((t ^. TeachesTeacherid) E.==. val tid))
             return (a,s)
         let s = listToMaybe ss
         case s of
@@ -172,8 +173,8 @@ getAllSubmissions ua k = case teacherid ua of
     (Just tid) -> do
         ss <- E.select $
             from $ \(a,c,t) -> do
-            where_ ((a ^. AssignmentId E.==. val k) E.&&. (a ^. AssignmentCoursecode E.==. c ^. CourseId) 
-                    E.&&. (c ^. CourseId E.==. t ^. TeachesCourseid) E.&&. (t ^. TeachesTeacherid E.==. val tid))
+            where_ (((a ^. AssignmentId) E.==. val k) E.&&. ((a ^. AssignmentCoursecode) E.==. (c ^. CourseId)) 
+                    E.&&. ((c ^. CourseId) E.==. (t ^. TeachesCourseid)) E.&&. ((t ^. TeachesTeacherid) E.==. val tid))
             return a
         let s = listToMaybe ss
         case s of
@@ -183,7 +184,7 @@ getAllSubmissions ua k = case teacherid ua of
                     from $ \su -> do
                     where_ (su ^. SubmissionAssignmentid E.==. val (entityKey a))
                     return su
-                sequenceA $ fmap (toSubmissionInfoQuery a) subs
+                traverse (toSubmissionInfoQuery a) subs
                 
 
 -- | Retrieve a student's submission for a certain assignment.
@@ -193,8 +194,8 @@ getMySubmission ua k = case studentid ua of
     (Just sid) -> do
         ss <- E.select $
             from $ \(a,c,f) -> do
-            where_ ((a ^. AssignmentId E.==. val k) E.&&. (a ^. AssignmentCoursecode E.==. c ^. CourseId) 
-                    E.&&. (c ^. CourseId E.==. f ^. FollowsCourseid) E.&&. (f ^. FollowsStudentid E.==. val sid))
+            where_ (((a ^. AssignmentId) E.==. val k) E.&&. ((a ^. AssignmentCoursecode) E.==. (c ^. CourseId))
+                    E.&&. ((c ^. CourseId) E.==. (f ^. FollowsCourseid)) E.&&. ((f ^. FollowsStudentid) E.==. val sid))
             return a
         let s = listToMaybe ss
         case s of
@@ -214,8 +215,8 @@ toSubmissionInfoQuery :: (MonadIO m, BackendCompatible SqlBackend backend, Persi
 toSubmissionInfoQuery a subm = do
     students <- E.select $
         from $ \(stu,stusub,u) -> do
-        where_ ((stu ^. StudentId E.==. stusub ^. SubmitsStudentid) E.&&. (stusub ^. SubmitsSubmissionid E.==. val (entityKey subm)) E.&&.
-            (stu ^. StudentUserid E.==. u ^. UserId))
+        where_ (((stu ^. StudentId) E.==. (stusub ^. SubmitsStudentid)) E.&&. ((stusub ^. SubmitsSubmissionid) E.==. val (entityKey subm)) E.&&.
+            ((stu ^. StudentUserid) E.==. (u ^. UserId)))
         return (u, stu)
     files <- E.select $
         from $ \fs -> do
@@ -237,11 +238,11 @@ processFile ua ks (FileUpload path name) = case studentid ua of
         time <- liftIO getCurrentTime
         ss <- E.select $
             from $ \(sits, ssion, ass) -> do
-            where_ ((sits ^. SubmitsSubmissionid E.==. ssion ^. SubmissionId) E.&&. 
-                    (sits ^. SubmitsStudentid E.==. val sid) E.&&.
-                    (ssion ^. SubmissionAssignmentid E.==. ass ^. AssignmentId) E.&&.
-                    (ass ^. AssignmentDeadline E.>. val time) E.&&.
-                    (ssion ^. SubmissionId E.==. val ks))
+            where_ (((sits ^. SubmitsSubmissionid) E.==. (ssion ^. SubmissionId)) E.&&. 
+                    ((sits ^. SubmitsStudentid) E.==. val sid) E.&&.
+                    ((ssion ^. SubmissionAssignmentid) E.==. (ass ^. AssignmentId)) E.&&.
+                    ((ass ^. AssignmentDeadline) E.>. val time) E.&&.
+                    ((ssion ^. SubmissionId) E.==. val ks))
             return (ssion, ass)
         let s = listToMaybe ss
         case s of
@@ -252,7 +253,7 @@ processFile ua ks (FileUpload path name) = case studentid ua of
                 return $ Just $ Entity fk f
     where moveAndGetFile :: IO File
           moveAndGetFile = do
-              let newpath = "assets/files/" ++ (takeFileName path)
+              let newpath = "assets/files/" ++ takeFileName path
               c <- copyFile path newpath
               h <- openFile newpath ReadMode
               size <- hFileSize h

@@ -34,7 +34,7 @@ main = do
         logger = setLogger env
     runSqlPool buildDb pool
     -- generateJavaScript
-    putStrLn $ "Starting server on port " ++ (show port)
+    putStrLn $ "Starting server on port " ++ show port
     let ctx = checkBasicAuth cfg :. EmptyContext
     run port (serveWithContext authProxy ctx $  authServer cfg)
 
