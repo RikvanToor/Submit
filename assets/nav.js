@@ -426,7 +426,8 @@ function updateGrade(submissionid, grade, status) {
 }
 
 function drawFile(file, table) {
-    table.append('<tr><td>'+file.filename+'</td><td style="text-align: right">'+file.filesize+'</td></tr>');
+    var link = '<a href="'+file.filepath.substr(7)+'">'+file.filename+'</a>';
+    table.append('<tr><td>'+link+'</td><td style="text-align: right">'+file.filesize+'</td></tr>');
 }
 
 function drawUploadForm(submissionid, outputTable) {
